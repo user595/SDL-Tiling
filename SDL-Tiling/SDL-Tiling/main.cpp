@@ -45,6 +45,7 @@ const int TILE_TOPLEFT = 11;
 
 //The surfaces
 SDL_Surface *dot = NULL;
+SDL_Surface *enemy = NULL;
 SDL_Surface *screen = NULL;
 SDL_Surface *tileSheet = NULL;
 
@@ -94,6 +95,33 @@ class Dot
     public:
     //Initializes the variables
     Dot();
+
+    //Takes key presses and adjusts the dot's velocity
+    void handle_input();
+
+    //Moves the dot
+    void move( Tile *tiles[] );
+
+    //Shows the dot on the screen
+    void show();
+
+    //Sets the camera over the dot
+    void set_camera();
+};
+
+//The enemy
+class Enemy
+{
+    private:
+    //The dot's collision box
+    SDL_Rect box;
+
+    //The velocity of the dot
+    int xVel, yVel;
+
+    public:
+    //Initializes the variables
+    Enemy();
 
     //Takes key presses and adjusts the dot's velocity
     void handle_input();
@@ -265,6 +293,15 @@ bool load_files()
         return false;
     }
 
+	//Load the enemy image
+    enemy = load_image( "enemy.png" );
+
+    //If there was a problem in loading the dot
+    if( enemy == NULL )
+    {
+        return false;
+    }
+
     //Load the tile sheet
     tileSheet = load_image( "tiles.png" );
 
@@ -282,6 +319,7 @@ void clean_up( Tile *tiles[] )
 {
     //Free the surfaces
     SDL_FreeSurface( dot );
+	SDL_FreeSurface( enemy );
     SDL_FreeSurface( tileSheet );
 
     //Free the tiles
@@ -475,6 +513,76 @@ int Tile::get_type()
 SDL_Rect Tile::get_box()
 {
     return box;
+}
+
+Enemy::Enemy()
+{
+    //Initialize the offsets
+    box.x = 20;
+    box.y = 0;
+    box.w = DOT_WIDTH;
+    box.h = DOT_HEIGHT;
+
+    //Initialize the velocity
+    xVel = 0;
+    yVel = 0;
+}
+
+void Enemy::handle_input()
+{
+    //If a key was pressed
+    if( event.type == SDL_KEYDOWN )
+    {
+        //Adjust the velocity
+        switch( event.key.keysym.sym )
+        {
+            case SDLK_UP: yVel -= DOT_HEIGHT / 2; break;
+            case SDLK_DOWN: yVel += DOT_HEIGHT / 2; break;
+            case SDLK_LEFT: xVel -= DOT_WIDTH / 2; break;
+            case SDLK_RIGHT: xVel += DOT_WIDTH / 2; break;
+        }
+    }
+    //If a key was released
+    else if( event.type == SDL_KEYUP )
+    {
+        //Adjust the velocity
+        switch( event.key.keysym.sym )
+        {
+            case SDLK_UP: yVel += DOT_HEIGHT / 2; break;
+            case SDLK_DOWN: yVel -= DOT_HEIGHT / 2; break;
+            case SDLK_LEFT: xVel += DOT_WIDTH / 2; break;
+            case SDLK_RIGHT: xVel -= DOT_WIDTH / 2; break;
+        }
+    }
+}
+
+void Enemy::move( Tile *tiles[] )
+{
+    //Move the dot left or right
+    box.x += xVel;
+
+    //If the dot went too far to the left or right or touched a wall
+    if( ( box.x < 0 ) || ( box.x + DOT_WIDTH > LEVEL_WIDTH ) || touches_wall( box, tiles ) )
+    {
+        //move back
+        box.x -= xVel;
+    }
+
+    //Move the dot up or down
+    box.y += yVel;
+
+    //If the dot went too far up or down or touched a wall
+    if( ( box.y < 0 ) || ( box.y + DOT_HEIGHT > LEVEL_HEIGHT ) || touches_wall( box, tiles ) )
+    {
+        //move back
+        box.y -= yVel;
+    }
+}
+
+void Enemy::show()
+{
+    //Show the dot
+    apply_surface( box.x - camera.x, box.y - camera.y, enemy, screen );
 }
 
 Dot::Dot()
@@ -671,6 +779,9 @@ int main( int argc, char* args[] )
     //The dot
     Dot myDot;
 
+    //The enemy
+    Enemy myEnemy;
+
     //The tiles that will be used
     Tile *tiles[ TOTAL_TILES ];
 
@@ -732,6 +843,9 @@ int main( int argc, char* args[] )
 
         //Show the dot on the screen
         myDot.show();
+
+		//Show the enemy on the screen
+		myEnemy.show();
 
         //Update the screen
         if( SDL_Flip( screen ) == -1 )
